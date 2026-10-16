@@ -1,3 +1,15 @@
+# 已归档 — 项目迁移至 MagicBox
+
+本仓库已归档，仅保留历史参考。**后续开发、使用和问题反馈，请前往新仓库 [FoloToy/MagicBox](https://github.com/FoloToy/MagicBox)。**
+
+- [多代硬件 BSP：main 分支](https://github.com/FoloToy/MagicBox/tree/main)：按型号、芯片和 PCB 版本区分，目前包含 M09 / ESP32-S3 / HW2.1.0 和 C5 参考硬件配置。
+- [M09 原 Arduino BSP 和示例](https://github.com/FoloToy/MagicBox/tree/main/legacy/m09-arduino)：原 Arduino 实现已保留在新仓库中。
+- [M09 小智移植：demo/xiaozhi 分支](https://github.com/FoloToy/MagicBox/tree/demo/xiaozhi)：使用原生 ESP-IDF，包含此前实现的按键、音量和晃动唤醒功能。
+
+请显式选择完整硬件配置，同为 S3 不代表其他 PCB 版本兼容。C5 的产品型号仍待确认，C5 小智尚未移植。以下内容为原 Arduino 工程的历史说明。
+
+---
+
 [English](README.md)
 
 # MagicBox Arduino BSP
