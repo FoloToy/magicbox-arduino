@@ -1,20 +1,15 @@
 #include "bsp.h"
 #include "bsp_pins.h"
 #include <FastLED.h>
-#include <Wire.h>
 #include "driver/i2s.h"
 static CRGB pixel[1];
-static bool ready = false, audio_ready = false, bus_ready = false;
+static bool ready = false, audio_ready = false;
 namespace bsp {
 void begin() {
     if (ready)
         return;
     for (unsigned i = 0; i < BSP_KEY_COUNT; i++) {
-#if defined(BSP_MAGICBOX_020)
         pinMode(BSP_KEYS[i], BSP_KEYS[i] >= 34 ? INPUT : INPUT_PULLUP);
-#else
-        pinMode(BSP_KEYS[i], INPUT_PULLUP);
-#endif
     }
     pinMode(BSP_VOLUME, INPUT);
     analogReadResolution(12);
@@ -116,28 +111,5 @@ void audio_end() {
     i2s_driver_uninstall(I2S_NUM_0);
     i2s_driver_uninstall(I2S_NUM_1);
     audio_ready = false;
-}
-esp_err_t i2c_begin() {
-    if (BSP_I2C_SDA < 0)
-        return ESP_ERR_NOT_SUPPORTED;
-    if (bus_ready)
-        return ESP_OK;
-    bus_ready = Wire.begin(BSP_I2C_SDA, BSP_I2C_SCL);
-    return bus_ready ? ESP_OK : ESP_FAIL;
-}
-esp_err_t i2c_read(uint8_t address, uint8_t reg, uint8_t *data, size_t size) {
-    if (!data || !size || size > 32 || address < 8 || address > 0x77)
-        return ESP_ERR_INVALID_ARG;
-    if (!bus_ready)
-        return ESP_ERR_INVALID_STATE;
-    Wire.beginTransmission(address);
-    Wire.write(reg);
-    if (Wire.endTransmission(false))
-        return ESP_FAIL;
-    if (Wire.requestFrom(address, static_cast<uint8_t>(size)) != size)
-        return ESP_ERR_TIMEOUT;
-    for (size_t i = 0; i < size; i++)
-        data[i] = Wire.read();
-    return ESP_OK;
 }
 } // namespace bsp

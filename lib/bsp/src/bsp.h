@@ -12,7 +12,4 @@ esp_err_t audio_begin(); // two I2S controllers, mono 16 kHz PCM API.
 esp_err_t audio_read(int16_t *pcm, size_t samples, size_t *read, uint32_t timeout_ms);
 esp_err_t audio_write(const int16_t *pcm, size_t samples, size_t *written, uint32_t timeout_ms);
 void audio_end();
-// Pro/Pro2 board I2C access; caller must serialize with other Wire users.
-esp_err_t i2c_begin();
-esp_err_t i2c_read(uint8_t address, uint8_t reg, uint8_t *data, size_t size);
 } // namespace bsp

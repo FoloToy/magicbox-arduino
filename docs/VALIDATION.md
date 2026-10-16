@@ -4,7 +4,7 @@
 
 Local compiler and source checks. No physical board was connected/tested.
 
-- Build: PASS — PlatformIO 6.1.19, espressif32 6.7.0, Arduino ESP32 2.0.16; baseline + demo for HW0.2.0 / Pro / Pro2 (six environments).
+- Build: PASS — PlatformIO 6.1.19, espressif32 6.7.0, Arduino ESP32 2.0.16; HW0.2.0 baseline + standalone demo (two environments).
 - Host tests: NOT RUN — no separate host-test harness for this hardware adapter.
 - Architecture checks: PASS — minimal default entry, BSP/application boundary, public dependency URLs and literal-credential guard.
 - Device tests: NOT RUN.
