@@ -17,7 +17,7 @@ The standalone demo now supports holding Voice to record (up to ten seconds), re
 
 ## Open acceptance items
 
-Original-level speech recording/playback is audible but quiet; 8x diagnostic playback passed operator acceptance. GPIO8 varied approximately 3271–4095, showing movement response, but full knob travel/calibration remains unverified. The operator confirms a rotary end stop that switches off the device. The demo reports raw ADC and does not implement volume-knob policy. Battery/charger functions, power rails and long-duration reliability were not tested.
+Original-level speech recording/playback is audible but quiet; 8x diagnostic playback passed operator acceptance. Knob volume adjustment and hardware power switching passed operator acceptance: smooth quiet-to-loud changes, LED off at power-off and green after power-on. Serial captured two POWERON boots with ESP_OK audio initialization. GPIO8 first stopped near 1866, but later powered operation produced 1145, 1401 and 1609, with a maximum of 4095; the first stopping position is not treated as a fixed endpoint. The demo retains the original 0–4095 ADC span and scales tones and 8x speech replay to 5%–100%, with smoothing and per-block ramps. This policy belongs to the demo; BSP ADC/PCM remain raw. Periodic tones reset to disabled on boot, which caused one apparent silent-restart report; after re-enabling the test, the operator confirmed normal adjustment. Exact mechanical endpoint and sound-pressure calibration remain unverified. Battery/charger functions, power rails and long-duration reliability were not tested.
 
 ## Preservation and reproduction
 

@@ -5,6 +5,17 @@
 #include <stdlib.h>
 #include <mbedtls/base64.h>
 
+// Preserve the original 12-bit ADC span; measured stopping positions are not fixed endpoints.
+#ifndef MAGICBOX_DEMO_KNOB_MIN_RAW
+#define MAGICBOX_DEMO_KNOB_MIN_RAW 0
+#endif
+#ifndef MAGICBOX_DEMO_KNOB_MAX_RAW
+#define MAGICBOX_DEMO_KNOB_MAX_RAW 4095
+#endif
+static_assert(MAGICBOX_DEMO_KNOB_MIN_RAW >= 0 && MAGICBOX_DEMO_KNOB_MAX_RAW <= 4095 &&
+                  MAGICBOX_DEMO_KNOB_MIN_RAW < MAGICBOX_DEMO_KNOB_MAX_RAW,
+              "Invalid knob endpoints");
+
 static bool audio_ready;
 static int16_t *recorded_pcm;
 static size_t recorded_samples;
@@ -13,16 +24,54 @@ static unsigned playback_gain = 8;
 static bool keys[BSP_KEY_COUNT];
 static uint32_t last_status;
 static uint16_t knob_min = 4095, knob_max = 0;
+static float volume_level;
+static bool volume_test;
+static uint32_t last_volume_tone;
 
-static void tone() {
+static float knob_to_level(float raw) {
+    float fraction = (raw - MAGICBOX_DEMO_KNOB_MIN_RAW) /
+                     (MAGICBOX_DEMO_KNOB_MAX_RAW - MAGICBOX_DEMO_KNOB_MIN_RAW);
+    fraction = constrain(fraction, 0.0f, 1.0f);
+    return (0.05f + fraction * 0.95f) * 4095.0f;
+}
+
+static unsigned volume_percent() { return static_cast<unsigned>(volume_level * 100 / 4095 + 0.5f); }
+
+static uint16_t update_volume() {
+    unsigned total = 0;
+    for (unsigned i = 0; i < 4; ++i)
+        total += bsp::knob_raw();
+    const float target = knob_to_level(total / 4.0f);
+    volume_level += (target - volume_level) * 0.2f;
+    if (abs(target - volume_level) < 0.75f)
+        volume_level = target;
+    return static_cast<uint16_t>(volume_level + 0.5f);
+}
+
+static void tone(unsigned duration_ms = 100) {
     if (!audio_ready)
         return;
-    int16_t pcm[1600];
-    for (unsigned i = 0; i < 1600; ++i)
-        pcm[i] = i % 32 < 16 ? 1000 : -1000;
-    size_t count = 0;
-    auto err = bsp::audio_write(pcm, 1600, &count, 1000);
-    Serial.printf("TONE result=%s samples=%u\n", esp_err_to_name(err), (unsigned)count);
+    const size_t samples = BSP_SAMPLE_RATE * duration_ms / 1000;
+    int16_t pcm[256];
+    size_t sent = 0;
+    esp_err_t err = ESP_OK;
+    while (sent < samples) {
+        const size_t chunk = min(static_cast<size_t>(256), samples - sent);
+        const float before = volume_level;
+        const float after = update_volume();
+        for (size_t i = 0; i < chunk; ++i) {
+            const float level = before + (after - before) * (i + 1) / chunk;
+            const int value = (sent + i) % 32 < 16 ? 1000 : -1000;
+            pcm[i] = static_cast<int16_t>(value * level / 4095.0f);
+        }
+        size_t count = 0;
+        err = bsp::audio_write(pcm, chunk, &count, 1000);
+        if (err != ESP_OK || !count)
+            break;
+        sent += count;
+    }
+    Serial.printf("TONE result=%s samples=%u volume_pct=%u\n", esp_err_to_name(err), (unsigned)sent,
+                  volume_percent());
 }
 
 static void colors() {
@@ -49,8 +98,13 @@ static void playback() {
     while (sent < playback_samples) {
         size_t count = 0;
         const size_t chunk = min(static_cast<size_t>(256), playback_samples - sent);
+        const float before = volume_level;
+        const float after = update_volume();
         for (size_t i = 0; i < chunk; ++i) {
-            int32_t value = static_cast<int32_t>(recorded_pcm[sent + i]) * playback_gain;
+            const float level = before + (after - before) * (i + 1) / chunk;
+            int32_t value =
+                static_cast<int32_t>(static_cast<int32_t>(recorded_pcm[sent + i]) *
+                                     static_cast<int32_t>(playback_gain) * level / 4095.0f);
             if (value > 30000) {
                 value = 30000;
                 ++limited;
@@ -160,13 +214,14 @@ static void record_playback(bool held = false) {
 void setup() {
     Serial.begin(115200);
     bsp::begin();
+    volume_level = knob_to_level(bsp::knob_raw());
     Serial.printf("BOARD %s flash=%u psram=%u heap=%u\n", bsp::board_name(), ESP.getFlashChipSize(),
                   ESP.getPsramSize(), ESP.getFreeHeap());
     auto err = bsp::audio_begin();
     audio_ready = err == ESP_OK;
     Serial.printf("AUDIO init=%s\n", esp_err_to_name(err));
     Serial.println("COMMANDS t=tone l=RGB-cycle r=5s-record/playback p=replay d=export-PCM "
-                   "g=cycle-gain h=help");
+                   "g=cycle-gain v=toggle-volume-test h=help");
     tone();
     bsp::rgb(0, 8, 0);
 }
@@ -184,12 +239,15 @@ void loop() {
             playback();
         else if (command == 'd')
             dump_recording();
-        else if (command == 'g') {
+        else if (command == 'v') {
+            volume_test = !volume_test;
+            Serial.printf("VOLUME test=%u\n", volume_test);
+        } else if (command == 'g') {
             playback_gain = playback_gain >= 8 ? 1 : playback_gain * 2;
             Serial.printf("GAIN value=%u\n", playback_gain);
         } else if (command == 'h')
             Serial.println("COMMANDS t=tone l=RGB-cycle r=5s-record/playback p=replay d=export-PCM "
-                           "g=cycle-gain h=help");
+                           "g=cycle-gain v=toggle-volume-test h=help");
     }
     for (unsigned i = 0; i < BSP_KEY_COUNT; ++i) {
         bool pressed = bsp::button_pressed(i);
@@ -203,6 +261,11 @@ void loop() {
                 colors();
             }
         }
+    }
+    update_volume();
+    if (volume_test && millis() - last_volume_tone >= 1000) {
+        last_volume_tone = millis();
+        tone(240);
     }
     const uint16_t knob = bsp::knob_raw();
     knob_min = min(knob_min, knob);
@@ -223,6 +286,8 @@ void loop() {
         Serial.printf("STATUS knob=%u mic=%s samples=%u peak=%d heap=%u\n", knob,
                       esp_err_to_name(err), (unsigned)count, peak, ESP.getFreeHeap());
         Serial.printf("KNOB min=%u max=%u\n", knob_min, knob_max);
+        Serial.printf("VOLUME raw=%u level=%u percent=%u test=%u\n", knob, (unsigned)volume_level,
+                      volume_percent(), volume_test);
         knob_min = 4095;
         knob_max = 0;
     }
