@@ -1,10 +1,10 @@
 # Archived — moved to MagicBox
 
-This repository is archived and retained for historical reference. **Use the maintained [FoloToy/MagicBox](https://github.com/FoloToy/MagicBox) repository for new development and issues.**
+This repository is archived and retains only the historical Arduino BSP on `main`. **Use the maintained [FoloToy/MagicBox](https://github.com/FoloToy/MagicBox) repository for new development and issues.**
 
 - [Multi-generation BSPs — main](https://github.com/FoloToy/MagicBox/tree/main): explicit model, chip and PCB revision profiles for M09 / ESP32-S3 / HW2.1.0 and the C5 reference hardware.
 - [Original M09 Arduino BSP and examples](https://github.com/FoloToy/MagicBox/tree/main/legacy/m09-arduino): the Arduino implementation is preserved in the new repository.
-- [M09 XiaoZhi port — demo/xiaozhi](https://github.com/FoloToy/MagicBox/tree/demo/xiaozhi): native ESP-IDF application, including the previously implemented controls and motion wake.
+- [M09 XiaoZhi — new repository only](https://github.com/FoloToy/MagicBox/tree/demo/xiaozhi): use the `demo/xiaozhi` branch in **FoloToy/MagicBox**. The former `codex/xiaozhi-port` branch has been removed from this Arduino repository.
 
 Select the complete hardware profile; another ESP32-S3 PCB is not automatically compatible. The C5 model mapping is pending confirmation, and C5 XiaoZhi is not yet ported. The content below describes the historical Arduino project.
 
