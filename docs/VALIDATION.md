@@ -9,11 +9,15 @@
 
 ## Observed on the device
 
-Both physical buttons (GPIO4 and GPIO3) produced press/release edges. Audio initialization and tone transmission returned ESP_OK; the operator heard the startup tone and confirmed a steady green LED. Microphone reads returned nonzero samples, with a peak of 18743 observed during the session. Two serial-triggered recordings each captured and transmitted 32000 samples at 16kHz with ESP_OK; this alone does not establish audible playback quality. The operator subsequently reported an issue with recording/playback or lighting; exact symptoms remain under investigation. Idle heap remained stable within each monitored firmware run.
+Both physical buttons are identified by the operator as Mode (GPIO4) and Voice (GPIO3); press/release and correct recording/playback LED transitions were observed. Startup tone and steady green LED passed operator acceptance. Flash was detected as 16MB; runtime reported 8386279 PSRAM bytes and a 256KB PSRAM pattern read/write test passed. On GPIO12/13, I2C addresses 0x19, 0x62 and 0x6b responded; 0x19 returned LIS3DH WHO_AM_I 0x33. The latter two addresses match the original battery/charger definitions but their functions were not exercised.
+
+A local diagnostic compared 32-bit stereo input with the original ONLY_LEFT mono configuration, using a 1kHz speaker stimulus. Both captured it: stereo input RMS rose from 33.9 to 7093.6; mono from 70.4 to 7226.8. The second stereo slot was zero. This did not support changing the BSP's microphone channel or pins. The operator heard the recorded test-tone replay, then confirmed near-field speech recording/playback at 10–15cm, with low output volume. Human speech in the exported capture had low signal levels; a release transient dominated the peak. Idle heap was stable within each diagnostic run.
+
+The standalone demo now supports holding Voice to record (up to ten seconds), releasing to replay, retaining raw PCM in RAM and exporting it over serial. Playback uses 8x gain by default, saturates at ±30000 and omits the final 80ms of hold recordings to reduce release noise. These adjustments affect the demo only. Raw PCM export is unchanged. Build and boundary checks passed. The operator reported 4x playback clear but quiet, then accepted 8x playback of the same recording as clear and sufficiently loud. That 102400-sample replay completed with ESP_OK and zero limited samples. The accepted 8x setting is now the demo default.
 
 ## Open acceptance items
 
-Audible recording/playback and the full RGB sequence have not passed operator acceptance. GPIO8 readings covered only 3752–4095 in the initial session and remained 4095 in the later session; full knob travel is unverified. The operator confirms two buttons and a rotary end stop that switches the device off. The demo reads raw ADC only and does not implement volume adjustment. Do not infer a failed potentiometer or a verified ADC mapping from these readings alone. Power rails, battery, optional I2C peripherals and long-duration reliability were not tested.
+Original-level speech recording/playback is audible but quiet; 8x diagnostic playback passed operator acceptance. GPIO8 varied approximately 3271–4095, showing movement response, but full knob travel/calibration remains unverified. The operator confirms a rotary end stop that switches off the device. The demo reports raw ADC and does not implement volume-knob policy. Battery/charger functions, power rails and long-duration reliability were not tested.
 
 ## Preservation and reproduction
 

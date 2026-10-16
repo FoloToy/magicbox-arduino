@@ -3,8 +3,13 @@
 #include <bsp.h>
 #include <bsp_pins.h>
 #include <stdlib.h>
+#include <mbedtls/base64.h>
 
 static bool audio_ready;
+static int16_t *recorded_pcm;
+static size_t recorded_samples;
+static size_t playback_samples;
+static unsigned playback_gain = 8;
 static bool keys[BSP_KEY_COUNT];
 static uint32_t last_status;
 static uint16_t knob_min = 4095, knob_max = 0;
@@ -31,21 +36,103 @@ static void colors() {
     bsp::rgb(0, 8, 0);
 }
 
-static void record_playback() {
+static void playback() {
+    if (!audio_ready || !recorded_samples) {
+        Serial.println("PLAYBACK no recording");
+        return;
+    }
+    bsp::rgb(0, 0, 12);
+    size_t sent = 0, limited = 0;
+    int16_t amplified[256];
+    esp_err_t err = ESP_OK;
+    const uint32_t started = millis();
+    while (sent < playback_samples) {
+        size_t count = 0;
+        const size_t chunk = min(static_cast<size_t>(256), playback_samples - sent);
+        for (size_t i = 0; i < chunk; ++i) {
+            int32_t value = static_cast<int32_t>(recorded_pcm[sent + i]) * playback_gain;
+            if (value > 30000) {
+                value = 30000;
+                ++limited;
+            } else if (value < -30000) {
+                value = -30000;
+                ++limited;
+            }
+            amplified[i] = static_cast<int16_t>(value);
+        }
+        err = bsp::audio_write(amplified, chunk, &count, 200);
+        if (err != ESP_OK || !count)
+            break;
+        sent += count;
+    }
+    // The I2S driver queues DMA data; allow its final samples to finish before changing the LED.
+    delay(80);
+    Serial.printf("PLAYBACK result=%s samples=%u gain=%u limited=%u elapsed_ms=%u\n",
+                  esp_err_to_name(err), (unsigned)sent, playback_gain, (unsigned)limited,
+                  (unsigned)(millis() - started));
+    bsp::rgb(0, 8, 0);
+}
+
+static void dump_recording() {
+    if (!recorded_samples) {
+        Serial.println("DUMP no recording");
+        return;
+    }
+    Serial.printf("DUMP BEGIN rate=%u samples=%u\n", BSP_SAMPLE_RATE, (unsigned)recorded_samples);
+    const auto *bytes = reinterpret_cast<const unsigned char *>(recorded_pcm);
+    const size_t total = recorded_samples * sizeof(int16_t);
+    for (size_t offset = 0; offset < total; offset += 192) {
+        unsigned char encoded[257];
+        size_t length = 0;
+        if (mbedtls_base64_encode(encoded, sizeof(encoded), &length, bytes + offset,
+                                  min(static_cast<size_t>(192), total - offset)) != 0) {
+            Serial.println("DUMP ERROR encode");
+            return;
+        }
+        Serial.print("PCM ");
+        Serial.write(encoded, length);
+        Serial.println();
+    }
+    Serial.println("DUMP END");
+}
+
+static void record_playback(bool held = false) {
     if (!audio_ready)
         return;
-    const size_t samples = BSP_SAMPLE_RATE * 2;
-    int16_t *pcm = static_cast<int16_t *>(malloc(samples * sizeof(int16_t)));
+    const size_t capacity = BSP_SAMPLE_RATE * 10;
+    const size_t samples = BSP_SAMPLE_RATE * (held ? 10 : 5);
+    if (!recorded_pcm)
+        recorded_pcm = static_cast<int16_t *>(malloc(capacity * sizeof(int16_t)));
+    int16_t *pcm = recorded_pcm;
+    recorded_samples = playback_samples = 0;
     if (!pcm) {
         Serial.println("RECORD no memory");
         return;
     }
-    Serial.println("RECORD start: speak for two seconds");
+    Serial.printf("RECORD start mode=%s max_seconds=%u\n", held ? "hold-Voice" : "fixed",
+                  held ? 10 : 5);
     bsp::rgb(12, 0, 0);
+    // Discard queued idle audio and the initial mechanical press transient.
+    int16_t discarded[256];
+    for (unsigned i = 0; i < 10; ++i) {
+        size_t count = 0;
+        if (bsp::audio_read(discarded, 256, &count, 100) != ESP_OK || !count)
+            break;
+    }
+    const uint32_t started = millis();
+    uint32_t released_at = 0;
     size_t used = 0;
     int peak = 0;
     esp_err_t err = ESP_OK;
     while (used < samples) {
+        if (held) {
+            if (bsp::button_pressed(1))
+                released_at = 0;
+            else if (!released_at)
+                released_at = millis();
+            else if (millis() - released_at >= 30)
+                break;
+        }
         size_t count = 0;
         const size_t chunk = min(static_cast<size_t>(256), samples - used);
         err = bsp::audio_read(pcm + used, chunk, &count, 200);
@@ -60,20 +147,14 @@ static void record_playback() {
         }
         used += count;
     }
-    Serial.printf("RECORD result=%s samples=%u peak=%d\n", esp_err_to_name(err), (unsigned)used,
-                  peak);
-    bsp::rgb(0, 0, 12);
-    size_t sent = 0;
-    while (sent < used) {
-        size_t count = 0;
-        err = bsp::audio_write(pcm + sent, min(static_cast<size_t>(256), used - sent), &count, 200);
-        if (err != ESP_OK || !count)
-            break;
-        sent += count;
-    }
-    Serial.printf("PLAYBACK result=%s samples=%u\n", esp_err_to_name(err), (unsigned)sent);
-    bsp::rgb(0, 8, 0);
-    free(pcm);
+    recorded_samples = used;
+    playback_samples = used;
+    // Keep raw PCM for export; omit the mechanical release transient from audition.
+    if (held && released_at && used > BSP_SAMPLE_RATE / 12)
+        playback_samples -= BSP_SAMPLE_RATE * 80 / 1000;
+    Serial.printf("RECORD result=%s samples=%u peak=%d elapsed_ms=%u\n", esp_err_to_name(err),
+                  (unsigned)used, peak, (unsigned)(millis() - started));
+    playback();
 }
 
 void setup() {
@@ -84,7 +165,8 @@ void setup() {
     auto err = bsp::audio_begin();
     audio_ready = err == ESP_OK;
     Serial.printf("AUDIO init=%s\n", esp_err_to_name(err));
-    Serial.println("COMMANDS t=tone l=RGB-cycle r=2s-record/playback h=help");
+    Serial.println("COMMANDS t=tone l=RGB-cycle r=5s-record/playback p=replay d=export-PCM "
+                   "g=cycle-gain h=help");
     tone();
     bsp::rgb(0, 8, 0);
 }
@@ -98,8 +180,16 @@ void loop() {
             colors();
         else if (command == 'r')
             record_playback();
-        else if (command == 'h')
-            Serial.println("COMMANDS t=tone l=RGB-cycle r=2s-record/playback h=help");
+        else if (command == 'p')
+            playback();
+        else if (command == 'd')
+            dump_recording();
+        else if (command == 'g') {
+            playback_gain = playback_gain >= 8 ? 1 : playback_gain * 2;
+            Serial.printf("GAIN value=%u\n", playback_gain);
+        } else if (command == 'h')
+            Serial.println("COMMANDS t=tone l=RGB-cycle r=5s-record/playback p=replay d=export-PCM "
+                           "g=cycle-gain h=help");
     }
     for (unsigned i = 0; i < BSP_KEY_COUNT; ++i) {
         bool pressed = bsp::button_pressed(i);
@@ -107,7 +197,7 @@ void loop() {
             keys[i] = pressed;
             Serial.printf("BUTTON index=%u gpio=%d pressed=%u\n", i, BSP_KEYS[i], pressed);
             if (pressed && i == 1)
-                record_playback();
+                record_playback(true);
             else if (pressed && i == 0) {
                 tone();
                 colors();
