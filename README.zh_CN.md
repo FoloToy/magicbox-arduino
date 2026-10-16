@@ -4,9 +4,8 @@
 
 - [多代硬件 BSP：main 分支](https://github.com/FoloToy/MagicBox/tree/main)：按型号、芯片和 PCB 版本区分，目前包含 M09 / ESP32-S3 / HW2.1.0 和 C5 参考硬件配置。
 - [M09 原 Arduino BSP 和示例](https://github.com/FoloToy/MagicBox/tree/main/legacy/m09-arduino)：原 Arduino 实现已保留在新仓库中。
-- [M09 小智移植：仅在新仓库提供](https://github.com/FoloToy/MagicBox/tree/demo/xiaozhi)：请使用 **FoloToy/MagicBox** 的 `demo/xiaozhi` 分支。本 Arduino 仓库原有的 `codex/xiaozhi-port` 分支已移除。
 
-请显式选择完整硬件配置，同为 S3 不代表其他 PCB 版本兼容。C5 的产品型号仍待确认，C5 小智尚未移植。以下内容为原 Arduino 工程的历史说明。
+请显式选择完整硬件配置，同为 S3 不代表其他 PCB 版本兼容。C5 的产品型号仍待确认。以下内容为原 Arduino 工程的历史说明。
 
 ---
 
