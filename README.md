@@ -2,7 +2,7 @@
 
 # MagicBox Arduino BSP
 
-Agent-oriented hardware baseline following [AI Passport](https://github.com/FoloToy/ai-passport): stable APIs, one pin map, minimal default entry and independent demo. This project supports only MagicBox HW0.2.0 (ESP32). Start with [AGENTS](AGENTS.md) and the [hardware/API guide](docs/BSP.md).
+Agent-oriented hardware baseline following [AI Passport](https://github.com/FoloToy/ai-passport): stable APIs, one pin map, minimal default entry and independent demo. This project supports only MagicBox HWv2.1.0 (ESP32-S3). Start with [AGENTS](AGENTS.md) and the [hardware/API guide](docs/BSP.md).
 
 ```text
 lib/bsp/src/              reusable Arduino BSP and bsp_pins.h

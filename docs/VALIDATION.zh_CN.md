@@ -1,13 +1,22 @@
 [English](VALIDATION.md)
 
-# Validation record — 2026-10-16
+# 验证记录 — 2026-10-16
 
-本机编译与源代码检查，未连接实体硬件。
+- 编译：通过 — PlatformIO 6.1.19、espressif32 6.7.0、Arduino ESP32 2.0.16；默认工程和独立 Demo 两个环境。
+- 主机测试：未运行 — 尚无独立主机测试框架。
+- 架构检查：通过 — 最小入口、BSP 与应用边界、公开依赖和凭据检查。
+- 真机测试：部分完成 — 实机为 ESP32-S3 revision v0.2，设备保存的 HardwareVersion 为 v2.1.0，16MB Flash、约 8MB PSRAM。仓库仅支持这一硬件版本。
 
-- Build: PASS — PlatformIO 6.1.19, espressif32 6.7.0, Arduino ESP32 2.0.16; HW0.2.0 baseline + standalone demo (two environments).
-- Host tests: NOT RUN — no separate host-test harness for this hardware adapter.
-- Architecture checks: PASS — minimal default entry, BSP/application boundary, public dependency URLs and literal-credential guard.
-- Device tests: NOT RUN.
-- Unverified: 实体板号、引脚/供电、Flash/PSRAM、I2C、电池、按键、旋钮、音频声道/增益/可听回放、板载外设，以及适用的电机/触觉/NFC/触摸/RTC/唤醒/4G。具体能力与已知边界见 BSP 指南。
+## 已观察到的结果
 
-复现：`./tools/build.sh`；仅主机边界检查：`python3 tools/check_boundaries.py`。构建可通过公开依赖独立复现。
+两个实体按键（GPIO4、GPIO3）均记录到按下和松开。音频初始化与短音发送返回 ESP_OK；操作者确认听到启动短音、常亮绿灯正常。麦克风持续读取到非零数据，测试期间观察到峰值 18743。两次串口触发录音均以 16kHz 采集、发送 32000 个样本，接口返回 ESP_OK；这些结果不能证明实际回放音质正常。操作者随后反馈录音回放或灯光有异常，具体表现仍在排查。同一固件运行期间观察到空闲堆内存稳定。
+
+## 尚未通过的验收项
+
+录音的可听回放和完整 RGB 灯色尚未通过人工验收。GPIO8 初次观察范围仅为 3752–4095，后续持续为 4095，旋钮全行程未验证。操作者确认只有两个按键，旋钮末端带关机功能。Demo 只读取原始 ADC，不实现音量调节。不能据此直接判断电位器损坏或确认 ADC 映射正确。供电、电池、可选 I2C 外设和长时间可靠性未测试。
+
+## 数据保护与复现
+
+沿用生产分区表，只将诊断应用写入 app0（0x410000），再通过 otadata 选择启动。原 factory 应用保留。前后比对确认分区表与设备身份分区均未变化，身份原始数据不入库。本流程不向生产实机刷入开发分区表。
+
+编译复现：`./tools/build.sh`；边界检查：`python3 tools/check_boundaries.py`。串口命令和实体按键操作见 [BSP.zh_CN.md](BSP.zh_CN.md)。真机结果只适用于本次设备和诊断镜像，不代表所有外设或生产应用均已验证。

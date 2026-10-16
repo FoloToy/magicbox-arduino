@@ -9,14 +9,10 @@ void begin() {
     if (ready)
         return;
     for (unsigned i = 0; i < BSP_KEY_COUNT; i++) {
-        pinMode(BSP_KEYS[i], BSP_KEYS[i] >= 34 ? INPUT : INPUT_PULLUP);
+        pinMode(BSP_KEYS[i], INPUT_PULLUP);
     }
     pinMode(BSP_VOLUME, INPUT);
     analogReadResolution(12);
-    if (BSP_INDICATOR >= 0) {
-        pinMode(BSP_INDICATOR, OUTPUT);
-        digitalWrite(BSP_INDICATOR, LOW);
-    }
     FastLED.addLeds<WS2812B, BSP_RGB, GRB>(pixel, 1);
     rgb(0, 0, 0);
     ready = true;

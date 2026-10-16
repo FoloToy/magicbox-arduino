@@ -2,7 +2,7 @@
 
 # MagicBox Arduino BSP
 
-按 AI Passport 面向 Agent 的设计组织：稳定硬件 API、唯一引脚表、最小默认入口和独立 Demo。仅支持 MagicBox HW0.2.0（ESP32）这一个版本。先读 [AGENTS](AGENTS.md) 和 [硬件/API 指南](docs/BSP.zh_CN.md)。
+按 AI Passport 面向 Agent 的设计组织：稳定硬件 API、唯一引脚表、最小默认入口和独立 Demo。仅支持 MagicBox HWv2.1.0（ESP32-S3）这一个版本。先读 [AGENTS](AGENTS.md) 和 [硬件/API 指南](docs/BSP.zh_CN.md)。
 
 ```text
 lib/bsp/src/              reusable Arduino BSP and bsp_pins.h
